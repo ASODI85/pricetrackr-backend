@@ -7,6 +7,7 @@ import searchRoutes from './routes/search.js';
 import affiliateRoutes from './routes/affiliate.js';
 import premiumRoutes from './routes/premium.js';
 import alertRoutes from './routes/alerts.js';
+import { supabase } from './utils/supabase.js';
 
 const fastify = Fastify({ logger: { level: process.env.NODE_ENV === 'production' ? 'warn' : 'info' } });
 
@@ -21,7 +22,17 @@ await fastify.register(cors, {
 
 await fastify.register(rateLimit, { global: true, max: 60, timeWindow: '1 minute' });
 
-fastify.get('/health', async () => ({ status: 'ok', version: '1.0.0', ts: new Date().toISOString() }));
+fastify.get('/health', async () => ({ status: 'ok', version: '1.1.0', ts: new Date().toISOString() }));
+
+fastify.get('/health/detailed', async (request, reply) => {
+  const checks = { backend: true, supabase: false, duffel: !!process.env.DUFFEL_API_KEY };
+  try {
+    const { error } = await supabase.from('users').select('id').limit(1);
+    checks.supabase = !error;
+  } catch { checks.supabase = false; }
+  const allOk = Object.values(checks).every(Boolean);
+  return reply.status(allOk ? 200 : 503).send({ status: allOk ? 'ok' : 'degraded', checks, ts: new Date().toISOString() });
+});
 
 await fastify.register(authRoutes,      { prefix: '/auth'      });
 await fastify.register(searchRoutes,    { prefix: '/search'    });
