@@ -1,0 +1,33 @@
+name: Deploy — PriceTrackr Backend
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# ─────────────────────────────────────────────
+# Required GitHub Secrets (Settings → Secrets):
+#
+#  RENDER_DEPLOY_HOOK_URL  – Render dashboard → pricetrackr-backend → Settings → Deploy Hook
+# ─────────────────────────────────────────────
+
+jobs:
+  deploy:
+    name: 🚀 Backend → Render
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render deploy
+        run: |
+          curl -s --fail-with-body -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+          echo "✅ PriceTrackr backend deploy triggered"
+
+      - name: Wait and verify health
+        run: |
+          echo "Waiting 60s for service to start..."
+          sleep 60
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://pricetrackr-backend.onrender.com/health)
+          if [ "$STATUS" = "200" ]; then
+            echo "✅ Health check passed (HTTP $STATUS)"
+          else
+            echo "⚠️  Health check returned HTTP $STATUS — service may still be warming up"
+          fi
